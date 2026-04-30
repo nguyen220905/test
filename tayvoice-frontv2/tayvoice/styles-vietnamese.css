@@ -1,0 +1,71 @@
+/* Additional styles for Vietnamese version */
+
+
+/* Enhanced button states */
+.btn-primary:not(:disabled):hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 24px rgba(205, 24, 24, 0.4);
+}
+
+.btn-primary:not(:disabled):active {
+    transform: translateY(-1px) scale(1.01);
+}
+
+/* Vietnamese voice badge in header */
+.logo h1 span {
+    display: inline-block;
+    animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-3px);
+    }
+}
+
+/* Loading indicator for ResponsiveVoice */
+.loading-indicator {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Sample text button highlight */
+#sampleBtn:hover {
+    background: linear-gradient(135deg, rgba(205, 24, 24, 0.1) 0%, rgba(255, 77, 77, 0.1) 100%);
+    border-color: var(--primary-color);
+}
+
+/* Enhanced history items */
+.history-item:hover {
+    background: rgba(16, 185, 129, 0.05);
+    border-color: rgba(16, 185, 129, 0.2);
+    transform: translateX(6px);
+}
+
+/* Pause button special state */
+#pauseBtn:not(:disabled) {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+#pauseBtn:not(:disabled):hover {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(245, 158, 11, 0.1) 100%);
+    border-color: rgba(245, 158, 11, 0.5);
+}

@@ -1,0 +1,10 @@
+.env
+__pycache__/
+venv/
+tts_history.db
+audio_files/
+.sixth/
+node_modules/
+.next/
+build/
+dist/
