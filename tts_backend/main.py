@@ -23,9 +23,12 @@ FRONTEND_DIR = Path(__file__).resolve().parent.parent / "tayvoice-frontv2" / "ta
 async def lifespan(app: FastAPI):
     # Tạo bảng SQLite nếu chưa có
     create_tables()
-    # Tạo thư mục lưu audio
-    os.makedirs(settings.AUDIO_DIR, exist_ok=True)
     yield
+
+
+# Đảm bảo thư mục audio tồn tại TRƯỚC khi mount (StaticFiles raise nếu thiếu).
+# Phải chạy ở module-level vì mount xảy ra ở import-time, trước khi lifespan run.
+os.makedirs(settings.AUDIO_DIR, exist_ok=True)
 
 
 # ─── App ─────────────────────────────────────────────────────────────────────
