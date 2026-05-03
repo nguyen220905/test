@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+    tags: ["v*"]
+  pull_request:
+    branches: [master, main]
+
+env:
+  PYTHON_VERSION: "3.12"
+  REGISTRY: ghcr.io
+
+# Huỷ run cũ khi có push mới cùng branch — tiết kiệm runner
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── 1. Lint ──────────────────────────────────────────────────────────────
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install ruff
+        run: pip install 'ruff>=0.6,<1.0'
+
+      - name: Ruff check
+        # Chỉ check F (pyflakes — undefined name / unused import / unused var)
+        # và E9 (syntax errors) để workflow pass với code hiện tại.
+        # Mở rộng --select khi code đã được dọn style.
+        run: ruff check --select=F,E9 tts_backend/
+
+  # ─── 2. Test ──────────────────────────────────────────────────────────────
+  test:
+    name: Test (pytest)
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: tts_backend/requirements.txt
+
+      - name: Install deps
+        run: |
+          pip install -r tts_backend/requirements.txt
+          pip install pytest
+
+      - name: Smoke import (verify app loads)
+        working-directory: tts_backend
+        run: python -c "from main import app; assert app.title; print('OK -', app.title)"
+
+      - name: Pytest
+        working-directory: tts_backend
+        run: |
+          set +e
+          pytest -v
+          code=$?
+          # Exit code 5 của pytest = "no tests collected" → coi như pass
+          # (xoá nhánh xử lý này khi đã có file test_*.py)
+          if [ $code -eq 5 ]; then
+            echo "::notice::No tests yet — add test_*.py vào tts_backend/ hoặc tts_backend/tests/"
+            exit 0
+          fi
+          exit $code
+
+  # ─── 3. Build & Push image lên GitHub Container Registry ─────────────────
+  build-and-push:
+    name: Build & Push (ghcr.io)
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write   # cần để push image lên ghcr.io
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # ghcr.io yêu cầu image name phải lowercase
+      - name: Lowercase image name
+        id: lc
+        run: echo "image=${REPO,,}" >> "$GITHUB_OUTPUT"
+        env:
+          REPO: ${{ github.repository }}
+
+      - name: Login to GHCR
+        # PR từ fork không có quyền ghi → bỏ qua login (cũng không push)
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.lc.outputs.image }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build & Push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          # PR chỉ build verify, không push.
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Cache layers giữa các run (sponsor by GitHub Actions cache)
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Build target = "runtime" (stage cuối trong multi-stage Dockerfile)
+          target: runtime

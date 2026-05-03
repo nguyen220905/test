@@ -1,7 +1,11 @@
 // ==================== Global State ====================
 let isPlaying = false;
 let currentAudio = null;
-const API_BASE = 'http://localhost:5000';
+// Khi mở trang qua chính backend (http://localhost:8888/) thì dùng same-origin.
+// Khi mở file://… thì fallback về localhost:8888.
+const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:')
+    ? location.origin
+    : 'http://localhost:8888';
 
 // ==================== DOM Elements ====================
 const textInput = document.getElementById('textInput');
@@ -43,11 +47,11 @@ async function checkServerStatus() {
     try {
         const response = await fetch(`${API_BASE}/api/health`);
         const data = await response.json();
-        if (data.status === 'ok') {
+        if (data.backend === 'ok') {
             showStatus('✅ Server đã sẵn sàng', 'success');
         }
     } catch (error) {
-        showStatus('⚠️ Không kết nối được server. Vui lòng chạy server.py', 'error');
+        showStatus('⚠️ Không kết nối được server. Vui lòng chạy backend (python main.py)', 'error');
     }
 }
 
@@ -79,6 +83,11 @@ async function speak() {
         showStatus('🎤 Đang tạo file âm thanh...', 'loading');
         speakBtn.disabled = true;
 
+        // Slider hiển thị "Tốc độ X.Xx" (1x = bình thường, 2x = nhanh, 0.5x = chậm).
+        // Backend dùng length_scale ngược lại (0.5 = nhanh, 2 = chậm) → đảo bằng 1/x.
+        const speed = parseFloat(speedSlider.value);
+        const lengthScale = Math.min(2.0, Math.max(0.5, 1.0 / speed));
+
         const response = await fetch(`${API_BASE}/api/tts`, {
             method: 'POST',
             headers: {
@@ -86,30 +95,31 @@ async function speak() {
             },
             body: JSON.stringify({
                 text: text,
-                lang: voiceSelect.value,
-                slow: parseFloat(speedSlider.value) < 0.8
+                length_scale: lengthScale,
+                save_audio: true,
             })
         });
 
         const data = await response.json();
 
-        if (data.success) {
+        if (data.success && data.audio_url) {
             const audioUrl = `${API_BASE}${data.audio_url}`;
-            playAudio(audioUrl, data.filename);
+            const filename = data.audio_url.split('/').pop();
+            playAudio(audioUrl, filename);
 
             // Save to history
             saveToHistory({
                 text: text,
                 voice: voiceSelect.options[voiceSelect.selectedIndex].text,
                 lang: voiceSelect.value,
-                speed: parseFloat(speedSlider.value),
-                audioFile: data.filename,
+                speed: speed,
+                audioFile: filename,
                 timestamp: new Date().toISOString()
             });
 
             showStatus('✅ Đã tạo file âm thanh', 'success');
         } else {
-            throw new Error(data.error || 'Unknown error');
+            throw new Error(data.message || data.detail || 'Unknown error');
         }
     } catch (error) {
         console.error('TTS Error:', error);
@@ -163,7 +173,7 @@ function stopAudio() {
 function downloadAudio(url, filename) {
     const a = document.createElement('a');
     a.href = url;
-    a.download = filename || 'tts-audio.mp3';
+    a.download = filename || 'tts-audio.wav';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -298,7 +308,7 @@ function replayFromHistory(event) {
     if (!item) return;
 
     if (item.audioFile) {
-        const audioUrl = `${API_BASE}/api/audio/${item.audioFile}`;
+        const audioUrl = `${API_BASE}/audio/${item.audioFile}`;
         playAudio(audioUrl, item.audioFile);
     } else {
         textInput.value = item.text;
@@ -316,7 +326,7 @@ function downloadFromHistory(event) {
     const item = history[index];
 
     if (item && item.audioFile) {
-        const audioUrl = `${API_BASE}/api/audio/${item.audioFile}`;
+        const audioUrl = `${API_BASE}/audio/${item.audioFile}`;
         downloadAudio(audioUrl, item.audioFile);
     }
 }

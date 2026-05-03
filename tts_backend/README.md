@@ -45,11 +45,18 @@ Mở `.env` và điền:
 ## Chạy server
 
 ```bash
-uvicorn main:app --reload --port 8000
+# Cách 1 (khuyến nghị): chạy trực tiếp, port 8888 mặc định
+python main.py
+
+# Cách 2: dùng uvicorn
+uvicorn main:app --reload --port 8888
 ```
 
-- API docs: http://localhost:8000/docs
-- Health check: http://localhost:8000/api/health
+> Backend sẽ phục vụ luôn cả frontend tĩnh từ `../tayvoice-frontv2/tayvoice/`.
+> Mở http://localhost:8888/ → tự động vào trang giao diện.
+
+- API docs: http://localhost:8888/docs
+- Health check: http://localhost:8888/api/health
 
 ---
 
@@ -74,7 +81,7 @@ uvicorn main:app --reload --port 8000
 ### Chuyển đổi text
 
 ```js
-const res = await fetch("http://localhost:8000/api/tts", {
+const res = await fetch("http://localhost:8888/api/tts", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -87,7 +94,7 @@ const res = await fetch("http://localhost:8000/api/tts", {
 });
 const data = await res.json();
 // data.audio_url = "/audio/abc123.wav"
-const audio = new Audio("http://localhost:8000" + data.audio_url);
+const audio = new Audio("http://localhost:8888" + data.audio_url);
 audio.play();
 ```
 
@@ -97,7 +104,7 @@ audio.play();
 const formData = new FormData();
 formData.append("file", fileInput.files[0]);
 
-const res = await fetch("http://localhost:8000/api/tts/upload-file", {
+const res = await fetch("http://localhost:8888/api/tts/upload-file", {
   method: "POST",
   body: formData,
 });
@@ -108,7 +115,7 @@ const { text } = await res.json();
 ### Lịch sử
 
 ```js
-const res = await fetch("http://localhost:8000/api/history/");
+const res = await fetch("http://localhost:8888/api/history/");
 const history = await res.json();
 // history = [{id, text, audio_url, noise_scale, length_scale, volume, created_at}, ...]
 ```

@@ -1,0 +1,36 @@
+services:
+  tayvoice:
+    build: .
+    container_name: tayvoice
+    init: true
+    ports:
+      - "8888:8888"
+    # AI_API_URL / AI_API_KEY lấy từ tts_backend/.env
+    env_file:
+      - tts_backend/.env
+    # Override một vài đường dẫn để khớp với volume bên dưới
+    environment:
+      DATABASE_URL: "sqlite:////data/tts_history.db"
+      AUDIO_DIR: "/app/tts_backend/audio_files"
+    volumes:
+      # Audio sinh ra ghi xuống host để xem được khi cần.
+      # Linux: nếu lỗi permission, chạy `sudo chown -R 1001:1001 ./tts_backend/audio_files`
+      # vì container chạy non-root uid=1001.
+      - ./tts_backend/audio_files:/app/tts_backend/audio_files
+      # SQLite history giữ lại qua các lần rebuild
+      - tayvoice_db:/data
+    restart: unless-stopped
+    # Khoá leo thang quyền — defense-in-depth khi đã chạy non-root
+    security_opt:
+      - no-new-privileges:true
+    # Healthcheck đã khai báo trong Dockerfile (compose tự kế thừa).
+    # Nếu muốn override, bỏ comment dưới đây:
+    # healthcheck:
+    #   test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8888/api/health', timeout=10)"]
+    #   interval: 30s
+    #   timeout: 15s
+    #   start_period: 15s
+    #   retries: 3
+
+volumes:
+  tayvoice_db:

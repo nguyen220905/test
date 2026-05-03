@@ -1,0 +1,29 @@
+# Git / IDE
+.git
+.gitignore
+.idea
+.vscode
+.sixth
+
+# Python
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/venv
+**/.venv
+
+# Secrets & local data — KHÔNG bake vào image, dùng env_file/volume thay thế
+**/.env
+**/tts_history.db
+**/audio_files/*.wav
+
+# Node / dist (nếu sau này có)
+**/node_modules
+**/.next
+**/build
+**/dist
+
+# Docker chính nó
+Dockerfile
+docker-compose.yml
+.dockerignore
