@@ -60,27 +60,17 @@ jobs:
         working-directory: tts_backend
         run: python -c "from main import app; assert app.title; print('OK -', app.title)"
 
-      - name: Detect tests
-        id: detect
+      - name: Pytest
         working-directory: tts_backend
         run: |
-          # Tìm file test (loại trừ venv / __pycache__)
-          found=$(find . \
-              \( -path ./venv -o -path ./__pycache__ -o -path ./audio_files \) -prune \
-              -o -type f \( -name "test_*.py" -o -name "*_test.py" \) -print \
-              | head -n1)
-          if [ -n "$found" ]; then
-            echo "has_tests=true"  >> "$GITHUB_OUTPUT"
-            echo "Found tests: $found"
-          else
-            echo "has_tests=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::No test_*.py / *_test.py — pytest sẽ bị skip. Thêm tests/ để bật CI test."
+          set +e
+          pytest -v
+          code=$?
+          if [ $code -eq 5 ]; then
+            echo "::notice::No tests yet — pytest exited with code 5 (no tests collected). Thêm tests/ để bật CI test."
+            exit 0
           fi
-
-      - name: Pytest
-        if: steps.detect.outputs.has_tests == 'true'
-        working-directory: tts_backend
-        run: pytest -v
+          exit $code
 
   # ─── 3. Build & Push image lên GitHub Container Registry ─────────────────
   build-and-push:
